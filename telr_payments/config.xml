@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>telr_payments</name>
+    <displayName><![CDATA[Telr Secure Payments]]></displayName>
+    <version><![CDATA[2.0.0]]></version>
+    <description><![CDATA[Process transactions through the Telr gateway]]></description>
+    <author><![CDATA[telr.com]]></author>
+    <tab><![CDATA[payments_gateways]]></tab>
+    <is_configurable>1</is_configurable>
+    <need_instance>1</need_instance>
+	<limited_countries></limited_countries>
+</module>
