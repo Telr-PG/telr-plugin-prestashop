@@ -81,7 +81,8 @@ class Telr_Payments extends PaymentModule
         Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', 'en') &&
         Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', 'PS_OS_PAYMENT') &&
         Configuration::updateValue('TELR_PAYMENTS_TRANDESC', 'Your order from StoreName') &&
-        Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com/gateway/order.json');
+        //Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://uat-secure.telrdev.com/gateway/order.json');
+		Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com/gateway/order.json');
         return true;
     }
 
@@ -250,6 +251,10 @@ class Telr_Payments extends PaymentModule
                                 'id_option' => 2,
                                 'name' => 'Framed Mode'
                             ),
+							array(
+                                'id_option' => 10,
+                                'name' => 'Seamless Mode'
+                            ),
                         ),                           
                         'name' => 'name',                               
                         'id' => 'id_option'                               
@@ -382,20 +387,24 @@ class Telr_Payments extends PaymentModule
         $payment_options = [];
         
         $isSSl = (array_key_exists('HTTPS', $_SERVER) && $_SERVER['HTTPS'] == "on") ? true : false;
-        //$isSSl = true;
+	    $isSSl = true;
 
-        if(Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 2 && $isSSl){
-            $payment_options[] = $this->getIframePaymentOption();
-        }else{
-            $payment_options[] = $this->getExternalPaymentOption();
-        }
+		if(Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 2 && $isSSl){
+			//$payment_options[] = $this->getIframePaymentOption();
+			$payment_options[] = $this->getEmbeddedPaymentOption();
+		}elseif(Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 10 && $isSSl){
+			$payment_options[] = $this->getEmbeddedPaymentOption();
+		}else{
+			$payment_options[] = $this->getExternalPaymentOption();
+		}		
         return $payment_options;
     }
 
     public function getExternalPaymentOption()
     {
         $externalOption = new PaymentOption();
-        $externalOption->setCallToActionText($this->l('Secure Payment via '))
+        $externalOption->setModuleName($this->name)
+		->setCallToActionText($this->l('Credit/Debit Card'))
         ->setAction($this->context->link->getModuleLink($this->name, 'process', array(), true))
         ->setAdditionalInformation($this->context->smarty->fetch('module:telr_payments/views/templates/front/payment_infos.tpl'))
         ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/payment.jpg'));
@@ -406,12 +415,66 @@ class Telr_Payments extends PaymentModule
     public function getIframePaymentOption()
     {
         $iframeOption = new PaymentOption();
-        $iframeOption->setCallToActionText($this->l('Secure Payment via '))
+        $iframeOption->setModuleName($this->name)
+		->setCallToActionText($this->l('Credit/Debit Card'))
         ->setAction($this->context->link->getModuleLink($this->name, 'process', array(), true))
         ->setAdditionalInformation($this->context->smarty->fetch('module:telr_payments/views/templates/front/payment_infos.tpl'))
         ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/payment.jpg'));
 
         return $iframeOption;
+    }
+	
+	 /**
+     * Factory of PaymentOption for Embedded Payment
+     *
+     * @return PaymentOption
+     */
+    private function getEmbeddedPaymentOption()
+    {
+        $embeddedOption = new PaymentOption();
+        $embeddedOption->setModuleName($this->name)
+		->setCallToActionText($this->l('Credit/Debit Card'));
+        $embeddedOption->setForm($this->generateEmbeddedForm());
+
+        return $embeddedOption;
+    }
+	
+	
+	private function generateEmbeddedForm()
+    {
+		$storeId = Configuration::get('TELR_PAYMENTS_STOREID');
+		$currencyCode = $this->context->currency->iso_code;
+		$testMode = Configuration::get('TELR_PAYMENTS_TESTMODE');
+		$storelang = Configuration::get('TELR_PAYMENTS_LANGUAGE');
+		$iframemod = Configuration::get('TELR_PAYMENTS_IFRAMEMODE');
+		$savedCards = [];
+		$frameHeight = 320;
+		
+		if (Tools::getShopProtocol() == 'http://' && $this->context->customer->isLogged())
+        {            
+			$savedCards = $this->getTelrSavedCards($this->context->customer->id);
+			if(count($savedCards) > 0){
+				$frameHeight += 30;
+				$frameHeight += (count($savedCards) * 110);
+			}
+        }
+		
+		//$seamlessUrl = "https://uat-secure.telrdev.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;;
+		$seamlessUrl = "https://secure.telr.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+		
+        $this->context->smarty->assign([
+            'action' => $this->context->link->getModuleLink($this->name, 'process', array(), true),
+			'storeid' => $storeId,
+			'currency_code' => $currencyCode,
+			'test_mode' => $testMode,
+			'seamless_url' => $seamlessUrl,
+			'saved_cards' => json_encode($savedCards),
+			'frame_height' => $frameHeight,
+			'iframemod' => $iframemod
+			
+        ]);
+
+        return $this->context->smarty->fetch('module:telr_payments/views/templates/front/paymentOptionEmbeddedForm.tpl');
     }
 
     public function checkCurrency($cart)
@@ -427,5 +490,55 @@ class Telr_Payments extends PaymentModule
             }
         }
         return false;
+    }
+	
+	
+	protected function getTelrSavedCards($custId)
+    {
+        $telrCards = array();
+
+        $storeId = Configuration::get('TELR_PAYMENTS_STOREID');
+        $authKey = Configuration::get('TELR_PAYMENTS_SECRET');
+        $testMode  = Configuration::get('TELR_PAYMENTS_TESTMODE');
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+          CURLOPT_URL => "https://secure.telr.com/gateway/savedcardslist.json",
+		  //CURLOPT_URL => "https://uat-secure.telrdev.com/gateway/savedcardslist.json",
+          CURLOPT_RETURNTRANSFER => true,
+          CURLOPT_ENCODING => "",
+          CURLOPT_MAXREDIRS => 10,
+          CURLOPT_TIMEOUT => 30,
+          CURLOPT_SSL_VERIFYHOST => 0,
+          CURLOPT_SSL_VERIFYPEER => 0,
+          CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+          CURLOPT_CUSTOMREQUEST => "POST",
+          CURLOPT_POSTFIELDS => "api_storeid=" . $storeId . "&api_authkey=" . $authKey . "&api_testmode=" . $testMode . "&api_custref=" . $custId,
+          CURLOPT_HTTPHEADER => array(
+            "cache-control: no-cache",
+            "content-type: application/x-www-form-urlencoded",
+          ),
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if (!$err) {
+            $resp = json_decode($response, true);
+            if(isset($resp['SavedCardListResponse']) && $resp['SavedCardListResponse']['Code'] == 200){
+                if(isset($resp['SavedCardListResponse']['data'])){
+                    foreach ($resp['SavedCardListResponse']['data'] as $key => $row) {
+                        $telrCards[] = array(
+                            'txn_id' => $row['Transaction_ID'],
+                            'name' => $row['Name']
+                        );
+                    }
+                }
+            }
+        }
+
+        return $telrCards;
     }
 }

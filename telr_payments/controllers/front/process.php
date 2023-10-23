@@ -25,10 +25,15 @@ class Telr_PaymentsProcessModuleFrontController extends ModuleFrontController
      * @see FrontController::postProcess()
      */
 
-    private $telrAPIURL = "https://secure.telr.com/gateway/order.json";
+    //private $telrAPIURL = "https://uat-secure.telrdev.com/gateway/order.json";
+	private $telrAPIURL = "https://secure.telr.com/gateway/order.json";
 
     public function postProcess()
     {
+		$jsonString = file_get_contents('php://input');
+		$paymentToken = json_decode($jsonString, true);
+		
+		
         $cart = $this->context->cart;
         if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
             Tools::redirect('index.php?controller=order&step=1');
@@ -69,10 +74,10 @@ class Telr_PaymentsProcessModuleFrontController extends ModuleFrontController
 
         $framedMode = 0;
         $isSSl = (array_key_exists('HTTPS', $_SERVER) && $_SERVER['HTTPS'] == "on") ? true : false;
-        //$isSSl = true;
+        $isSSl = true;
 
-        if(Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 2 && $isSSl){
-            $framedMode = 2;
+        if((Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 2 || Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 10) && $isSSl){
+            $framedMode = 3;
         }
 
         $data = array(
@@ -103,14 +108,19 @@ class Telr_PaymentsProcessModuleFrontController extends ModuleFrontController
             'ivp_lang' => Configuration::get('TELR_PAYMENTS_LANGUAGE'),
         );
 
-        if (Tools::getShopProtocol() == 'https://' && $this->context->customer->isLogged())
+        if (Tools::getShopProtocol() == 'http://' && $this->context->customer->isLogged())
         {
             $data['bill_custref'] = $this->context->customer->id;
+        }
+		
+		if(isset($paymentToken['payment_token']) && $paymentToken['payment_token'] != ''){
+            $data['ivp_paymethod']            = "card";
+            $data['card_token']            = $paymentToken['payment_token'];
         }
 
         PrestaShopLogger::addLog("TelrOrderCreateRequest: " . json_encode($data), 1);
 
-        $response  = $this->apiRequest($data);
+        $response  = $this->apiRequest($data);		
         $ref = trim($response['order']['ref']);
         $url= trim($response['order']['url']);
 
@@ -126,12 +136,17 @@ class Telr_PaymentsProcessModuleFrontController extends ModuleFrontController
             if($framedMode == 0){
                 Tools::redirect($url);
             }else{
-                parent::initContent();
-                $this->context->smarty->assign([
-                    'src' => $url,
-                ]);
+				echo json_encode($url); exit;
+				/*if(Configuration::get('TELR_PAYMENTS_IFRAMEMODE') == 10 && $isSSl){
+					echo json_encode($url); exit;
+				}else{
+					parent::initContent();
+					$this->context->smarty->assign([
+						'src' => $url,
+					]);
 
-                $this->setTemplate('module:telr_payments/views/templates/front/iframe.tpl');            
+					$this->setTemplate('module:telr_payments/views/templates/front/iframe.tpl');      
+				}	*/
             }
         }   
     }
