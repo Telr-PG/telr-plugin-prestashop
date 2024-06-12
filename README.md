@@ -10,6 +10,6 @@ This plugin enables your Prestashop powered platform to start accepting payments
 * Locate the line for Telr in Module Manager page and click on Configure option
 * Add your 'Store ID' and 'Authentication Key' in the payment Configure page and fill all required fileds (Note : If you have not 'Store ID' and 'Authentication Key' please contact with Telr support)
 
-## License
+### License ###
 
 This repository is available under the [MIT license](LICENSE).
