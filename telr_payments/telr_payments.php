@@ -402,6 +402,10 @@ class Telr_Payments extends PaymentModule
 
     public function getExternalPaymentOption()
     {
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
+        $this->context->smarty->assign(['supportedCards'=>$supportedCards]);
+
         $externalOption = new PaymentOption();
         $externalOption->setModuleName($this->name)
 		->setCallToActionText($this->l('Credit/Debit Card'))
@@ -414,6 +418,10 @@ class Telr_Payments extends PaymentModule
 
     public function getIframePaymentOption()
     {
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
+        $this->context->smarty->assign(['supportedCards'=>$supportedCards]);
+
         $iframeOption = new PaymentOption();
         $iframeOption->setModuleName($this->name)
 		->setCallToActionText($this->l('Credit/Debit Card'))
@@ -540,5 +548,56 @@ class Telr_Payments extends PaymentModule
         }
 
         return $telrCards;
+    }
+
+    protected function getTelrSupportedNetworks(){
+		
+	    $storeId = Configuration::get('TELR_PAYMENTS_STOREID');
+        $currencyCode = $this->context->currency->iso_code;
+        $testMode  = Configuration::get('TELR_PAYMENTS_TESTMODE');
+		
+        $data =array(
+            'ivp_store' => $storeId,			
+            'ivp_currency' => $currencyCode,
+            'ivp_test' => $testMode
+        );
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://secure.telr.com/gateway/api_store_terminals.json');		
+        curl_setopt($ch, CURLOPT_POST, count($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Expect:'));
+        $results = curl_exec($ch);
+        $results = preg_replace('/,\s*([\]}])/m', '$1', $results);
+        $results = json_decode($results, true);
+        
+        if (isset($results['StoreTerminalsResponse']['CardList'])){
+           return  $results['StoreTerminalsResponse']['CardList'];
+        }else{
+           return array();
+        }
+    }
+
+    protected function getSupportedCardList($cardsList){
+        $supportedCards = array(); 
+	    if(!empty($cardsList)){
+            foreach($cardsList as $card){
+                if($card == 'VISA'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/visa.png');
+                }elseif($card == 'MASTERCARD'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/mastercard.png');
+                }elseif($card == 'JCB'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/jcb.png');
+                }elseif($card == 'MADA'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/mada.png');
+                }elseif($card == 'AMEX'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/amex.png');
+                }elseif($card == 'MAESTRO'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/maestro.png');
+                }
+            }
+        }
+        return 	$supportedCards;		
     }
 }
