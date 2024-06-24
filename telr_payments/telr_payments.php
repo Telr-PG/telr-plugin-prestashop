@@ -81,7 +81,7 @@ class Telr_Payments extends PaymentModule
         Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', 'en') &&
         Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', 'PS_OS_PAYMENT') &&
         Configuration::updateValue('TELR_PAYMENTS_TRANDESC', 'Your order from StoreName') &&
-		Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
+        Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
         return true;
     }
 
