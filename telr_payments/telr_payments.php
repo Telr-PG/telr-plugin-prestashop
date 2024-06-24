@@ -467,7 +467,10 @@ class Telr_Payments extends PaymentModule
 			}
         }
 		
-		$seamlessUrl = Configuration::get('TELR_PAYMENTS_APIURL')."/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+        $seamlessUrl = Configuration::get('TELR_PAYMENTS_APIURL')."/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+		
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
 		
         $this->context->smarty->assign([
             'action' => $this->context->link->getModuleLink($this->name, 'process', array(), true),
@@ -477,8 +480,8 @@ class Telr_Payments extends PaymentModule
 			'seamless_url' => $seamlessUrl,
 			'saved_cards' => json_encode($savedCards),
 			'frame_height' => $frameHeight,
-			'iframemod' => $iframemod
-			
+			'iframemod' => $iframemod,
+			'supportedCards'=>$supportedCards			
         ]);
 
         return $this->context->smarty->fetch('module:telr_payments/views/templates/front/paymentOptionEmbeddedForm.tpl');
