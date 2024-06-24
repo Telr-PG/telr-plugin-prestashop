@@ -24,11 +24,8 @@ class Telr_PaymentsIvpcallbackModuleFrontController extends ModuleFrontControlle
     /**
      * @see FrontController::postProcess()
      */
-
-    //private $telrAPIURL = "https://uat-secure.telrdev.com/gateway/order.json";
-	private $telrAPIURL = "https://secure.telr.com/gateway/order.json";
-
-    public function postProcess()
+  
+	public function postProcess()
     {
         PrestaShopLogger::addLog("TelrIvpCallbackRequest: " . json_encode($_POST), 1);
 

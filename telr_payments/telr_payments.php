@@ -81,8 +81,7 @@ class Telr_Payments extends PaymentModule
         Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', 'en') &&
         Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', 'PS_OS_PAYMENT') &&
         Configuration::updateValue('TELR_PAYMENTS_TRANDESC', 'Your order from StoreName') &&
-        //Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://uat-secure.telrdev.com/gateway/order.json');
-		Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com/gateway/order.json');
+		Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
         return true;
     }
 
@@ -178,6 +177,7 @@ class Telr_Payments extends PaymentModule
                     Configuration::updateValue('TELR_PAYMENTS_IFRAMEMODE', $store_iframemode);
                     Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', $store_language);
                     Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', $store_orderstatus);
+                    Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
                     $output .= $this->displayConfirmation($this->l('Settings updated'));
                 }
             }
@@ -467,8 +467,7 @@ class Telr_Payments extends PaymentModule
 			}
         }
 		
-		//$seamlessUrl = "https://uat-secure.telrdev.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;;
-		$seamlessUrl = "https://secure.telr.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+		$seamlessUrl = Configuration::get('TELR_PAYMENTS_APIURL')."/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
 		
         $this->context->smarty->assign([
             'action' => $this->context->link->getModuleLink($this->name, 'process', array(), true),
@@ -511,8 +510,7 @@ class Telr_Payments extends PaymentModule
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
-          CURLOPT_URL => "https://secure.telr.com/gateway/savedcardslist.json",
-		  //CURLOPT_URL => "https://uat-secure.telrdev.com/gateway/savedcardslist.json",
+          CURLOPT_URL => Configuration::get('TELR_PAYMENTS_APIURL')."/gateway/savedcardslist.json",
           CURLOPT_RETURNTRANSFER => true,
           CURLOPT_ENCODING => "",
           CURLOPT_MAXREDIRS => 10,
@@ -550,7 +548,8 @@ class Telr_Payments extends PaymentModule
         return $telrCards;
     }
 
-    protected function getTelrSupportedNetworks(){
+    protected function getTelrSupportedNetworks()
+	{
 		
 	    $storeId = Configuration::get('TELR_PAYMENTS_STOREID');
         $currencyCode = $this->context->currency->iso_code;
@@ -563,7 +562,7 @@ class Telr_Payments extends PaymentModule
         );
         
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://secure.telr.com/gateway/api_store_terminals.json');		
+        curl_setopt($ch, CURLOPT_URL, Configuration::get('TELR_PAYMENTS_APIURL').'/gateway/api_store_terminals.json');		
         curl_setopt($ch, CURLOPT_POST, count($data));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -579,7 +578,8 @@ class Telr_Payments extends PaymentModule
         }
     }
 
-    protected function getSupportedCardList($cardsList){
+    protected function getSupportedCardList($cardsList)
+	{
         $supportedCards = array(); 
 	    if(!empty($cardsList)){
             foreach($cardsList as $card){
