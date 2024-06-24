@@ -552,8 +552,7 @@ class Telr_Payments extends PaymentModule
     }
 
     protected function getTelrSupportedNetworks()
-	{
-		
+	{		
 	    $storeId = Configuration::get('TELR_PAYMENTS_STOREID');
         $currencyCode = $this->context->currency->iso_code;
         $testMode  = Configuration::get('TELR_PAYMENTS_TESTMODE');
