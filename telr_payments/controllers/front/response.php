@@ -24,11 +24,8 @@ class Telr_PaymentsResponseModuleFrontController extends ModuleFrontController
     /**
      * @see FrontController::postProcess()
      */
-
-    //private $telrAPIURL = "https://uat-secure.telrdev.com/gateway/order.json";
-	private $telrAPIURL = "https://secure.telr.com/gateway/order.json";
-
-    public function postProcess()
+    
+	public function postProcess()
     {
         $cart = $this->context->cart;
         if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
@@ -157,8 +154,11 @@ class Telr_PaymentsResponseModuleFrontController extends ModuleFrontController
     }
 
     private function apiRequest($data){
+		
+        $telrAPIURL = Configuration::get('TELR_PAYMENTS_APIURL')."/gateway/order.json";
+		
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->telrAPIURL);
+        curl_setopt($ch, CURLOPT_URL, $telrAPIURL);
         curl_setopt($ch, CURLOPT_POST, count($data));
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

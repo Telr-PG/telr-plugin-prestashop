@@ -81,8 +81,7 @@ class Telr_Payments extends PaymentModule
         Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', 'en') &&
         Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', 'PS_OS_PAYMENT') &&
         Configuration::updateValue('TELR_PAYMENTS_TRANDESC', 'Your order from StoreName') &&
-        //Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://uat-secure.telrdev.com/gateway/order.json');
-		Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com/gateway/order.json');
+        Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
         return true;
     }
 
@@ -178,6 +177,7 @@ class Telr_Payments extends PaymentModule
                     Configuration::updateValue('TELR_PAYMENTS_IFRAMEMODE', $store_iframemode);
                     Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', $store_language);
                     Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', $store_orderstatus);
+                    Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
                     $output .= $this->displayConfirmation($this->l('Settings updated'));
                 }
             }
@@ -402,6 +402,10 @@ class Telr_Payments extends PaymentModule
 
     public function getExternalPaymentOption()
     {
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
+        $this->context->smarty->assign(['supportedCards'=>$supportedCards]);
+
         $externalOption = new PaymentOption();
         $externalOption->setModuleName($this->name)
 		->setCallToActionText($this->l('Credit/Debit Card'))
@@ -414,6 +418,10 @@ class Telr_Payments extends PaymentModule
 
     public function getIframePaymentOption()
     {
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
+        $this->context->smarty->assign(['supportedCards'=>$supportedCards]);
+
         $iframeOption = new PaymentOption();
         $iframeOption->setModuleName($this->name)
 		->setCallToActionText($this->l('Credit/Debit Card'))
@@ -459,8 +467,10 @@ class Telr_Payments extends PaymentModule
 			}
         }
 		
-		//$seamlessUrl = "https://uat-secure.telrdev.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;;
-		$seamlessUrl = "https://secure.telr.com/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+        $seamlessUrl = Configuration::get('TELR_PAYMENTS_APIURL')."/jssdk/v2/token_frame.html?token=" . rand(1111,9999)."&lang=".$storelang;
+		
+        $cardsList = $this->getTelrSupportedNetworks();
+        $supportedCards = $this->getSupportedCardList($cardsList);
 		
         $this->context->smarty->assign([
             'action' => $this->context->link->getModuleLink($this->name, 'process', array(), true),
@@ -470,8 +480,8 @@ class Telr_Payments extends PaymentModule
 			'seamless_url' => $seamlessUrl,
 			'saved_cards' => json_encode($savedCards),
 			'frame_height' => $frameHeight,
-			'iframemod' => $iframemod
-			
+			'iframemod' => $iframemod,
+			'supportedCards'=>$supportedCards			
         ]);
 
         return $this->context->smarty->fetch('module:telr_payments/views/templates/front/paymentOptionEmbeddedForm.tpl');
@@ -503,8 +513,7 @@ class Telr_Payments extends PaymentModule
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
-          CURLOPT_URL => "https://secure.telr.com/gateway/savedcardslist.json",
-		  //CURLOPT_URL => "https://uat-secure.telrdev.com/gateway/savedcardslist.json",
+          CURLOPT_URL => Configuration::get('TELR_PAYMENTS_APIURL')."/gateway/savedcardslist.json",
           CURLOPT_RETURNTRANSFER => true,
           CURLOPT_ENCODING => "",
           CURLOPT_MAXREDIRS => 10,
@@ -540,5 +549,57 @@ class Telr_Payments extends PaymentModule
         }
 
         return $telrCards;
+    }
+
+    protected function getTelrSupportedNetworks()
+	{		
+	    $storeId = Configuration::get('TELR_PAYMENTS_STOREID');
+        $currencyCode = $this->context->currency->iso_code;
+        $testMode  = Configuration::get('TELR_PAYMENTS_TESTMODE');
+		
+        $data =array(
+            'ivp_store' => $storeId,			
+            'ivp_currency' => $currencyCode,
+            'ivp_test' => $testMode
+        );
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, Configuration::get('TELR_PAYMENTS_APIURL').'/gateway/api_store_terminals.json');		
+        curl_setopt($ch, CURLOPT_POST, count($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Expect:'));
+        $results = curl_exec($ch);
+        $results = preg_replace('/,\s*([\]}])/m', '$1', $results);
+        $results = json_decode($results, true);
+        
+        if (isset($results['StoreTerminalsResponse']['CardList'])){
+           return  $results['StoreTerminalsResponse']['CardList'];
+        }else{
+           return array();
+        }
+    }
+
+    protected function getSupportedCardList($cardsList)
+	{
+        $supportedCards = array(); 
+	    if(!empty($cardsList)){
+            foreach($cardsList as $card){
+                if($card == 'VISA'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/visa.png');
+                }elseif($card == 'MASTERCARD'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/mastercard.png');
+                }elseif($card == 'JCB'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/jcb.png');
+                }elseif($card == 'MADA'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/mada.png');
+                }elseif($card == 'AMEX'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/amex.png');
+                }elseif($card == 'MAESTRO'){
+                    $supportedCards[] = Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/maestro.png');
+                }
+            }
+        }
+        return 	$supportedCards;		
     }
 }
