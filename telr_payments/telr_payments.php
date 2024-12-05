@@ -106,10 +106,10 @@ class Telr_Payments extends PaymentModule
             || !Configuration::deleteByName('TELR_APPLEPAY_MERCHANT_ID')
             || !Configuration::deleteByName('TELR_APPLEPAY_DOMAIN')
             || !Configuration::deleteByName('TELR_APPLEPAY_DISPLAY_NAME')
-            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE')
-            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE-name')
-            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_KEY')
-            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_KEY-name')
+            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_KEY_PATH')
+            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_NAME')
+            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_PATH')
+            || !Configuration::deleteByName('TELR_APPLEPAY_CERTIFICATE_KEY_NAME')
             || !Configuration::deleteByName('TELR_APPLEPAY_BUTTON_TYPE')
             || !Configuration::deleteByName('TELR_APPLEPAY_BUTTON_THEME')
         ){
@@ -178,82 +178,76 @@ class Telr_Payments extends PaymentModule
             if (function_exists('curl_init') == false) {
                 $output .= $this->displayError($this->trans('To be able to use this module, please activate cURL (PHP extension).', [], 'Modules.TelrPayments.Admin'));
             } else {
-                if(isset($_POST['TELR_PAYMENTS_STOREID'])) {
-                    $store_id = strval(Tools::getValue('TELR_PAYMENTS_STOREID'));
-                    $store_secret = strval(Tools::getValue('TELR_PAYMENTS_SECRET'));
-                    $store_trandesc = strval(Tools::getValue('TELR_PAYMENTS_TRANDESC'));
-                    $store_testmode = strval(Tools::getValue('TELR_PAYMENTS_TESTMODE'));
-                    $store_iframemode = strval(Tools::getValue('TELR_PAYMENTS_IFRAMEMODE'));
-                    $store_language = strval(Tools::getValue('TELR_PAYMENTS_LANGUAGE'));
-                    $store_orderstatus = strval(Tools::getValue('TELR_PAYMENTS_DEFAULT_STATUS'));
-                    if (empty($store_id) || empty($store_secret)) {
-                        $output .= $this->displayError($this->trans('Store ID and Authentication Key must be entered first', [], 'Modules.TelrPayments.Admin'));
-                    } else {
-                        Configuration::updateValue('TELR_PAYMENTS_STOREID', $store_id);
-                        Configuration::updateValue('TELR_PAYMENTS_SECRET', $store_secret);
-                        Configuration::updateValue('TELR_PAYMENTS_TRANDESC', $store_trandesc);
-                        Configuration::updateValue('TELR_PAYMENTS_TESTMODE', $store_testmode);
-                        Configuration::updateValue('TELR_PAYMENTS_IFRAMEMODE', $store_iframemode);
-                        Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', $store_language);
-                        Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', $store_orderstatus);
-                        Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
-                        $output .= $this->displayConfirmation($this->trans('General Setting', [], 'Modules.TelrPayments.Admin'));
+                $store_id = strval(Tools::getValue('TELR_PAYMENTS_STOREID'));
+                $store_secret = strval(Tools::getValue('TELR_PAYMENTS_SECRET'));
+                $store_trandesc = strval(Tools::getValue('TELR_PAYMENTS_TRANDESC'));
+                $store_testmode = strval(Tools::getValue('TELR_PAYMENTS_TESTMODE'));
+                $store_iframemode = strval(Tools::getValue('TELR_PAYMENTS_IFRAMEMODE'));
+                $store_language = strval(Tools::getValue('TELR_PAYMENTS_LANGUAGE'));
+                $store_orderstatus = strval(Tools::getValue('TELR_PAYMENTS_DEFAULT_STATUS'));
+
+                $apple_enable = strval(Tools::getValue('TELR_APPLEPAY_ENABLE'));
+                $apple_secret_key = strval(Tools::getValue('TELR_APPLEPAY_SECRET'));
+                $apple_merchant_id = strval(Tools::getValue('TELR_APPLEPAY_MERCHANT_ID'));
+                $apple_domain = strval(Tools::getValue('TELR_APPLEPAY_DOMAIN'));
+                $apple_display_name = strval(Tools::getValue('TELR_APPLEPAY_DISPLAY_NAME'));
+                $apple_button = strval(Tools::getValue('TELR_APPLEPAY_BUTTON_TYPE'));
+                $apple_button_theme = strval(Tools::getValue('TELR_APPLEPAY_BUTTON_THEME'));
+                $apple_certificate_path = Configuration::get('TELR_APPLEPAY_CERTIFICATE_PATH');
+                $apple_certificate_key_path = Configuration::get('TELR_APPLEPAY_CERTIFICATE_KEY_PATH');
+
+                $errorMsg .= (empty($store_id)) ? 'Store ID, ' : null;
+                $errorMsg .= (empty($store_secret)) ? 'Authentication Key, ' : null;
+                if($apple_enable == 'yes'){
+                    $errorMsg .= (empty($apple_secret_key)) ? 'Telr Apple Authentication Key, ' : null;
+                    $errorMsg .= (empty($apple_merchant_id)) ? 'Merchant Identifier, ' : null;
+                    $errorMsg .= (empty($apple_domain)) ? 'Domain Name, ' : null;
+                    $errorMsg .= (empty($apple_display_name)) ? 'Display Name, ' : null;
+                    if(empty($apple_certificate_path) && !isset($_FILES['TELR_APPLEPAY_CERTIFICATE']))	{
+                        $errorMsg .= (empty($apple_display_name)) ? 'Merchant Certificate, ' : null;
                     }
+                    if(empty($apple_certificate_key_path) && !isset($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY'])) {
+                        $errorMsg .= (empty($apple_display_name)) ? 'Merchant Certificate Key, ' : null;
+                    }
+                }
+                if(!empty($errorMsg)){
+                    $output .= $this->displayError($this->trans('Please ensure that the following fields are not empty: '.$errorMsg, [], 'Modules.TelrPayments.Admin'));
                 } else {
-                    $apple_enable = strval(Tools::getValue('TELR_APPLEPAY_ENABLE'));
-                    $apple_secret_key = strval(Tools::getValue('TELR_APPLEPAY_SECRET'));
-                    $apple_merchant_id = strval(Tools::getValue('TELR_APPLEPAY_MERCHANT_ID'));
-                    $apple_domain = strval(Tools::getValue('TELR_APPLEPAY_DOMAIN'));
-                    $apple_display_name = strval(Tools::getValue('TELR_APPLEPAY_DISPLAY_NAME'));
-                    $apple_button = strval(Tools::getValue('TELR_APPLEPAY_BUTTON_TYPE'));
-                    $apple_button_theme = strval(Tools::getValue('TELR_APPLEPAY_BUTTON_THEME'));
-                    $apple_certificate_path = Configuration::get('TELR_APPLEPAY_CERTIFICATE_PATH')
-                    $apple_certificate_key_path = Configuration::get('TELR_APPLEPAY_CERTIFICATE_KEY_PATH')
-
+                    Configuration::updateValue('TELR_PAYMENTS_STOREID', $store_id);
+                    Configuration::updateValue('TELR_PAYMENTS_SECRET', $store_secret);
+                    Configuration::updateValue('TELR_PAYMENTS_TRANDESC', $store_trandesc);
+                    Configuration::updateValue('TELR_PAYMENTS_TESTMODE', $store_testmode);
+                    Configuration::updateValue('TELR_PAYMENTS_IFRAMEMODE', $store_iframemode);
+                    Configuration::updateValue('TELR_PAYMENTS_LANGUAGE', $store_language);
+                    Configuration::updateValue('TELR_PAYMENTS_DEFAULT_STATUS', $store_orderstatus);
+                    Configuration::updateValue('TELR_PAYMENTS_APIURL', 'https://secure.telr.com');
+                    Configuration::updateValue('TELR_APPLEPAY_ENABLE', $apple_enable);
                     if($apple_enable == 'yes'){
-                        $errorMsg .= (empty($apple_secret_key)) ? 'Telr Apple Authentication Key, ' : null;
-                        $errorMsg .= (empty($apple_merchant_id)) ? 'Merchant Identifier, ' : null;
-                        $errorMsg .= (empty($apple_domain)) ? 'Domain Name, ' : null;
-                        $errorMsg .= (empty($apple_display_name)) ? 'Display Name, ' : null;
-
-                        if(empty($apple_certificate_path) && !isset($_FILES['TELR_APPLEPAY_CERTIFICATE']))	{
-                            $errorMsg .= (empty($apple_display_name)) ? 'Merchant Certificate, ' : null;
-                        }
-                        if(empty($apple_certificate_key_path) && !isset($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY'])) {
-                            $errorMsg .= (empty($apple_display_name)) ? 'Merchant Certificate Key, ' : null;
-                        }
-                        if(!empty($errorMsg)){
-                            $output .= $this->displayError($this->trans('Please ensure that the following fields are not empty: '.$errorMsg, [], 'Modules.TelrPayments.Admin'));
-                        } else {
-                            Configuration::updateValue('TELR_APPLEPAY_ENABLE', $apple_enable);
-                            Configuration::updateValue('TELR_APPLEPAY_SECRET', $apple_secret_key);
-                            Configuration::updateValue('TELR_APPLEPAY_MERCHANT_ID', $apple_merchant_id);
-                            Configuration::updateValue('TELR_APPLEPAY_DOMAIN', $apple_domain);
-                            Configuration::updateValue('TELR_APPLEPAY_DISPLAY_NAME', $apple_display_name);
-                            Configuration::updateValue('TELR_APPLEPAY_BUTTON_TYPE', $apple_button);
-                            Configuration::updateValue('TELR_APPLEPAY_BUTTON_THEME', $apple_button_theme);
-                            if (isset($_FILES['TELR_APPLEPAY_CERTIFICATE']) && $_FILES['TELR_APPLEPAY_CERTIFICATE']['error'] == UPLOAD_ERR_OK) {
-                                $fileName = basename($_FILES['TELR_APPLEPAY_CERTIFICATE']['name']);
-                                $filePath = $uploadDir . $fileName;
-                                if (move_uploaded_file($_FILES['TELR_APPLEPAY_CERTIFICATE']['tmp_name'], $filePath)) {
-                                    Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_PATH', $filePath);
-                                    Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_NAME', $fileName);
-                                }
-                            }
-                            if (isset($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']) && $_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['error'] == UPLOAD_ERR_OK) {
-                                $fileName = basename($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['name']);
-                                $filePath = $uploadDir . $fileName;
-                                if (move_uploaded_file($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['tmp_name'], $filePath)) {
-                                    Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_KEY_PATH', $filePath);
-                                    Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_KEY_NAME', $fileName);
-                                }
-                            }
-                            $output .= $this->displayConfirmation($this->trans('ApplePay Setting', [], 'Modules.TelrPayments.Admin'));
-                        }
-                    } else {
                         Configuration::updateValue('TELR_APPLEPAY_ENABLE', $apple_enable);
-                        $output .= $this->displayConfirmation($this->trans('ApplePay Setting', [], 'Modules.TelrPayments.Admin'));
+                        Configuration::updateValue('TELR_APPLEPAY_SECRET', $apple_secret_key);
+                        Configuration::updateValue('TELR_APPLEPAY_MERCHANT_ID', $apple_merchant_id);
+                        Configuration::updateValue('TELR_APPLEPAY_DOMAIN', $apple_domain);
+                        Configuration::updateValue('TELR_APPLEPAY_DISPLAY_NAME', $apple_display_name);
+                        Configuration::updateValue('TELR_APPLEPAY_BUTTON_TYPE', $apple_button);
+                        Configuration::updateValue('TELR_APPLEPAY_BUTTON_THEME', $apple_button_theme);
+                        if (isset($_FILES['TELR_APPLEPAY_CERTIFICATE']) && $_FILES['TELR_APPLEPAY_CERTIFICATE']['error'] == UPLOAD_ERR_OK) {
+                            $fileName = basename($_FILES['TELR_APPLEPAY_CERTIFICATE']['name']);
+                            $filePath = $uploadDir . $fileName;
+                            if (move_uploaded_file($_FILES['TELR_APPLEPAY_CERTIFICATE']['tmp_name'], $filePath)) {
+                                Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_PATH', $filePath);
+                                Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_NAME', $fileName);
+                            }
+                        }
+                        if (isset($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']) && $_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['error'] == UPLOAD_ERR_OK) {
+                            $fileName = basename($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['name']);
+                            $filePath = $uploadDir . $fileName;
+                            if (move_uploaded_file($_FILES['TELR_APPLEPAY_CERTIFICATE_KEY']['tmp_name'], $filePath)) {
+                                Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_KEY_PATH', $filePath);
+                                Configuration::updateValue('TELR_APPLEPAY_CERTIFICATE_KEY_NAME', $fileName);
+                            }
+                        }
                     }
+                    $output .= $this->displayConfirmation($this->trans('Setting', [], 'Modules.TelrPayments.Admin'));
                 }
             }
         }
