@@ -247,7 +247,7 @@ class Telr_Payments extends PaymentModule
                             }
                         }
                     }
-                    $output .= $this->displayConfirmation($this->trans('Setting', [], 'Modules.TelrPayments.Admin'));
+                    $output .= $this->displayConfirmation($this->trans('Setting Updated', [], 'Modules.TelrPayments.Admin'));
                 }
             }
         }
@@ -257,6 +257,8 @@ class Telr_Payments extends PaymentModule
     public function displayForm()
     {
         $default_lang = (int)Configuration::get('PS_LANG_DEFAULT');
+        $certificateName = Configuration::get('TELR_APPLEPAY_CERTIFICATE_NAME', '');
+        $certificateKeyName = Configuration::get('TELR_APPLEPAY_CERTIFICATE_KEY_NAME', '');
 
         $fields_form[0]['form'] = array(
             'legend' => array(
@@ -399,16 +401,12 @@ class Telr_Payments extends PaymentModule
                         'id' => 'id_option'                               
                     )
                 ),
-            ),
-            'submit' => array(
-                'title' => $this->trans('Save', [], 'Modules.TelrPayments.Admin'),
-                'class' => 'button'
-            )
+            ),            
         );
 
         $fields_form[1]['form'] = array(
             'legend' => [
-                'title' => $this->trans('ApplePay Setting', [], 'Modules.Wirepayment.Admin'),
+                'title' => $this->trans('ApplePay Setting', [], 'Modules.TelrPayments.Admin'),
                 'icon' => 'icon-cogs',
             ],
             'input' => array(
@@ -465,14 +463,14 @@ class Telr_Payments extends PaymentModule
 		            'type' => 'file',
                     'label' => $this->trans('Merchant Certificate', [], 'Modules.TelrPayments.Admin'),
                     'name' => 'TELR_APPLEPAY_CERTIFICATE',
-                    'desc' => 'Find this in your apple pay developer portal',
+                    'desc' => '<span id="uploaded-cert-name" style="font-size:16px;color:#0729a3">' . htmlspecialchars($certificateName) . '</span>',
                     'required' => true
                 ),
                 array(
                     'type' => 'file',
                     'label' => $this->trans('Merchant Certificate Key', [], 'Modules.TelrPayments.Admin'),
                     'name' => 'TELR_APPLEPAY_CERTIFICATE_KEY',
-                    'desc' => 'Find this in your apple pay developer portal',
+                    'desc' => '<span id="uploaded-certkey-name"  style="font-size:16px;color:#0729a3">' . htmlspecialchars($certificateKeyName) . '</span>',
                     'required' => true
                 ),
                 array(
@@ -605,7 +603,10 @@ class Telr_Payments extends PaymentModule
 			$payment_options[] = $this->getEmbeddedPaymentOption();
 		}else{
 			$payment_options[] = $this->getExternalPaymentOption();
-		}		
+		}
+        if(Configuration::get('TELR_APPLEPAY_ENABLE') == 'yes'){
+            $payment_options[] = $this->getApplePayPaymentOption();
+        }
         return $payment_options;
     }
 
@@ -655,7 +656,67 @@ class Telr_Payments extends PaymentModule
 
         return $embeddedOption;
     }
-	
+
+    private function getApplePayPaymentOption()
+    {
+        $telr_applepay_assets = [
+            'css' => Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/views/css/telr_payments.css?v=1'),
+            'js' => Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/views/js/telr_payments.js?v=1'),
+        ];
+        $applePayBtnClass = Configuration::get('TELR_APPLEPAY_BUTTON_TYPE').' '.Configuration::get('TELR_APPLEPAY_BUTTON_THEME');
+        $apple_merchant_id = Configuration::get('TELR_APPLEPAY_MERCHANT_ID');
+		
+        $country_code = $this->context->country->iso_code;
+        $telr_supported_networks = $this->getTelrSupportedNetworks();
+        $supported_networks    = ['masterCard','visa'];
+        if(!empty($telr_supported_networks)){
+            if (in_array('APPLEPAY MADA',$telr_supported_networks)) {
+                array_push( $supported_networks, 'mada' );
+                $country_code = 'SA';
+            }		
+            if (in_array('APPLEPAY AMEX',$telr_supported_networks)) {
+                array_push( $supported_networks, 'amex' );
+            }
+            if (in_array('APPLEPAY DISCOVER',$telr_supported_networks)) {
+               array_push( $supported_networks, 'discover' );
+            }
+            if (in_array('APPLEPAY JCB',$telr_supported_networks)) {
+               array_push( $supported_networks, 'jcb' );
+            }
+        }
+        $merchant_capabilities = [ 'supports3DS', 'supportsCredit', 'supportsDebit' ];
+        $currency_code = $this->context->currency->iso_code;
+        $cart_total = (float)$this->context->cart->getOrderTotal(true, Cart::BOTH);
+        $cart_subtotal = (float)$this->context->cart->getOrderTotal(false, Cart::ONLY_PRODUCTS);
+		$shipping_amt = (float)$this->context->cart->getOrderTotal(false, Cart::ONLY_SHIPPING);
+        $carrier_id = $this->context->cart->id_carrier;
+        $carrier = new Carrier($carrier_id);
+        $shipping_name = $carrier->name;
+        $ajaxUrl = $this->context->link->getModuleLink($this->name, 'validation');
+
+        $this->context->smarty->assign([
+            'telr_applepay_assets' => $telr_applepay_assets,
+            'apple_pay_btn_class' => $applePayBtnClass,
+            'apple_pay_merchant_id' => $apple_merchant_id,
+            'country_code' => $country_code,
+            'supported_networks' => $supported_networks,
+            'merchant_capabilities' => $merchant_capabilities,
+            'currency_code' => $currency_code,
+            'cart_total' => $cart_total,
+            'cart_subtotal' => $cart_subtotal,
+            'shipping_amt' => $shipping_amt,
+            'shipping_name' => $shipping_name,
+            'ajax_url' => $ajaxUrl,
+        ]);
+
+        $applePayOption = new PaymentOption();
+        $applePayOption->setModuleName('telr_payments_applepay')
+        ->setAction($this->context->link->getModuleLink($this->name, 'processApplepay', array(), true))
+        ->setAdditionalInformation($this->context->smarty->fetch('module:telr_payments/views/templates/front/payment_applepay.tpl'))
+        ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_.$this->name.'/images/applepay_logo.png'));
+
+        return $applePayOption;
+    }
 	
 	private function generateEmbeddedForm()
     {

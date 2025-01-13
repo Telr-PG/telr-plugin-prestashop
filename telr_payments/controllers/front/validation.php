@@ -26,6 +26,13 @@ class Telr_PaymentsValidationModuleFrontController extends ModuleFrontController
      */
     public function postProcess()
     {
+        if (Tools::getValue('ajax') == 1) {
+            $action = Tools::getValue('action');
+            if ($action === 'appleSessionValidation') {
+                $this->appleSessionValidation();
+            }
+        }
+
         $cart = $this->context->cart;
         if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
             Tools::redirect('index.php?controller=order&step=1');
@@ -50,4 +57,39 @@ class Telr_PaymentsValidationModuleFrontController extends ModuleFrontController
 
         $this->setTemplate('module:telr_payments/views/templates/front/payment_return.tpl');
     }
+
+    public function appleSessionValidation()
+    {
+        $url          = $_POST['url'];
+        $domain       = Configuration::get('TELR_APPLEPAY_DOMAIN');
+        $display_name = Configuration::get('TELR_APPLEPAY_DISPLAY_NAME');
+        $merchant_id     = Configuration::get('TELR_APPLEPAY_MERCHANT_ID');
+        $certificate     = Configuration::get('TELR_APPLEPAY_CERTIFICATE_PATH');
+        $certificate_key = Configuration::get('TELR_APPLEPAY_CERTIFICATE_KEY_PATH');
+
+        if (
+            'https' === parse_url( $url, PHP_URL_SCHEME ) &&
+            substr( parse_url( $url, PHP_URL_HOST ), - 10 ) === '.apple.com'
+        ) {
+            $ch = curl_init();
+            $data =
+                '{
+                  "merchantIdentifier":"' . $merchant_id . '",
+                  "domainName":"' . $domain . '",
+                  "displayName":"' . $display_name . '"
+              }';
+            curl_setopt( $ch, CURLOPT_URL, $url );
+            curl_setopt( $ch, CURLOPT_SSLCERT, $certificate );
+            curl_setopt( $ch, CURLOPT_SSLKEY, $certificate_key );
+            curl_setopt( $ch, CURLOPT_POST, 1 );
+            curl_setopt( $ch, CURLOPT_POSTFIELDS, $data );
+
+            if ( curl_exec( $ch ) === false ) {
+                echo '{"curlError":"' . curl_error( $ch ) . '"}';
+            }
+            curl_close( $ch );            
+        }
+		exit();
+    }
+
 }
