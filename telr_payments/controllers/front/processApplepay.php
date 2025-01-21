@@ -33,77 +33,77 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
             $applePayData = json_decode($_POST['applepaydata'], true);
             if(isset($applePayData['paymentData']) && isset($applePayData['paymentMethod']) && isset($applePayData['transactionIdentifier'])) {
 					
-				$cart = $this->context->cart;
-				if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
-					Tools::redirect('index.php?controller=order&step=1');
-				}
+                $cart = $this->context->cart;
+                if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
+                    Tools::redirect('index.php?controller=order&step=1');
+                }
 
-				// Check that this payment option is still available in case the customer changed his address just before the end of the checkout process
-				$authorized = false;
-				foreach (Module::getPaymentModules() as $module) {
-					if ($module['name'] == 'telr_payments' || $module['name'] == 'Telr_Payments') {
-						$authorized = true;
-						break;
-					}
-				}
+                // Check that this payment option is still available in case the customer changed his address just before the end of the checkout process
+                $authorized = false;
+                foreach (Module::getPaymentModules() as $module) {
+                    if ($module['name'] == 'telr_payments' || $module['name'] == 'Telr_Payments') {
+                        $authorized = true;
+                        break;
+                    }
+                }
 
-				if (!$authorized) {
-					die($this->module->l('This payment method is not available.', 'validation'));
-				}
+                if (!$authorized) {
+                    die($this->module->l('This payment method is not available.', 'validation'));
+                }
 
-				$this->context->smarty->assign([
-					'params' => $_REQUEST,
-				]);
+                $this->context->smarty->assign([
+                    'params' => $_REQUEST,
+                ]);
 
-				$shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
-				$address    = new Address((int)($this->context->cart->id_address_invoice));
-				$total_pay = (float)$this->context->cart->getOrderTotal(true, Cart::BOTH);
+                $shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
+                $address    = new Address((int)($this->context->cart->id_address_invoice));
+                $total_pay = (float)$this->context->cart->getOrderTotal(true, Cart::BOTH);
 
-				$cart_id=$this->context->cart->id;
-				$trandesc=trim(str_replace('{order}',$cart_id, Configuration::get('TELR_PAYMENTS_TRANDESC')));
-				if (empty($trandesc)) {
-					$trandesc="Order #".$cart_id;
-				}
+                $cart_id=$this->context->cart->id;
+                $trandesc=trim(str_replace('{order}',$cart_id, Configuration::get('TELR_PAYMENTS_TRANDESC')));
+                if (empty($trandesc)) {
+                    $trandesc="Order #".$cart_id;
+                }
 
-				$cart_id = $cart_id."_".uniqid();
+                $cart_id = $cart_id."_".uniqid();
 
-				$data = array(
-					'ivp_method'    => "applepay",
-					'ivp_source'    => "Prestashop "._PS_VERSION_,
-					'ivp_store' => Configuration::get('TELR_PAYMENTS_STOREID') ,
-					'ivp_authkey'   => Configuration::get('TELR_APPLEPAY_SECRET'),
-					'ivp_test'  => "0",
-					'ivp_cart'  => $cart_id,
-					'ivp_amount'    => $total_pay,
-					'ivp_desc'  => $trandesc,
-					'ivp_trantype' => "sale",
-					'ivp_tranclass' => "ecom",
-					'ivp_currency'  => $this->context->currency->iso_code,
-					'bill_fname'    => $address->firstname,
-					'bill_sname'    => $address->lastname,
-					'bill_addr1'    => $address->address1,
-					'bill_addr2'    => $address->address2,
-					'bill_phone1'   => $address->phone,
-					'bill_city' => $address->city,
-					'bill_region'   => $address->city,
-					'bill_zip'  => $address->postcode,
-					'bill_email'    => $this->context->customer->email,
-					'bill_country'  => $this->context->country->iso_code ,
-					'applepay_enc_version'  => $applePayData['paymentData']['version'],
-					'applepay_enc_paydata'  => urlencode($applePayData['paymentData']['data']),
-					'applepay_enc_paysig'   => urlencode($applePayData['paymentData']['signature']),
-					'applepay_enc_pubkey'   => urlencode($applePayData['paymentData']['header']['ephemeralPublicKey']),
-					'applepay_enc_keyhash'  => $applePayData['paymentData']['header']['publicKeyHash'],
-					'applepay_tran_id'      => $applePayData['paymentData']['header']['transactionId'],
-					'applepay_card_desc'    => $applePayData['paymentMethod']['type'],
-					'applepay_card_scheme'  => $applePayData['paymentMethod']['displayName'],
-					'applepay_card_type'    => $applePayData['paymentMethod']['network'],
-					'applepay_tran_id2'     => $applePayData['transactionIdentifier'],
-				);
+                $data = array(
+                    'ivp_method'    => "applepay",
+                    'ivp_source'    => "Prestashop "._PS_VERSION_,
+                    'ivp_store' => Configuration::get('TELR_PAYMENTS_STOREID') ,
+                    'ivp_authkey'   => Configuration::get('TELR_APPLEPAY_SECRET'),
+                    'ivp_test'  => "0",
+                    'ivp_cart'  => $cart_id,
+                    'ivp_amount'    => $total_pay,
+                    'ivp_desc'  => $trandesc,
+                    'ivp_trantype' => "sale",
+                    'ivp_tranclass' => "ecom",
+                    'ivp_currency'  => $this->context->currency->iso_code,
+                    'bill_fname'    => $address->firstname,
+                    'bill_sname'    => $address->lastname,
+                    'bill_addr1'    => $address->address1,
+                    'bill_addr2'    => $address->address2,
+                    'bill_phone1'   => $address->phone,
+                    'bill_city' => $address->city,
+                    'bill_region'   => $address->city,
+                    'bill_zip'  => $address->postcode,
+                    'bill_email'    => $this->context->customer->email,
+                    'bill_country'  => $this->context->country->iso_code ,
+                    'applepay_enc_version'  => $applePayData['paymentData']['version'],
+                    'applepay_enc_paydata'  => urlencode($applePayData['paymentData']['data']),
+                    'applepay_enc_paysig'   => urlencode($applePayData['paymentData']['signature']),
+                    'applepay_enc_pubkey'   => urlencode($applePayData['paymentData']['header']['ephemeralPublicKey']),
+                    'applepay_enc_keyhash'  => $applePayData['paymentData']['header']['publicKeyHash'],
+                    'applepay_tran_id'      => $applePayData['paymentData']['header']['transactionId'],
+                    'applepay_card_desc'    => $applePayData['paymentMethod']['type'],
+                    'applepay_card_scheme'  => $applePayData['paymentMethod']['displayName'],
+                    'applepay_card_type'    => $applePayData['paymentMethod']['network'],
+                    'applepay_tran_id2'     => $applePayData['transactionIdentifier'],
+                );
 
-				PrestaShopLogger::addLog("TelrOrderCreateRequest: " . json_encode($data), 1);
+                PrestaShopLogger::addLog("TelrOrderCreateRequest: " . json_encode($data), 1);
 
-				$response  = $this->apiRequest($data);
+                $response  = $this->apiRequest($data);
                 PrestaShopLogger::addLog("TelrOrderCreateResponse: " . json_encode($response), 1);
 				
                 if (isset($response['transaction'])) { $objTransaction = $response['transaction']; }
