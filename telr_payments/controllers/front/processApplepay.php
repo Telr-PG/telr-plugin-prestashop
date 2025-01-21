@@ -77,6 +77,8 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
 					'ivp_cart'  => $cart_id,
 					'ivp_amount'    => $total_pay,
 					'ivp_desc'  => $trandesc,
+					'ivp_trantype' => "sale",
+					'ivp_tranclass' => "ecom",
 					'ivp_currency'  => $this->context->currency->iso_code,
 					'bill_fname'    => $address->firstname,
 					'bill_sname'    => $address->lastname,
