@@ -23,16 +23,15 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
 {
     /**
      * @see FrontController::postProcess()
-     */
-    
-	public function postProcess()
+     */    
+    public function postProcess()
     {	
         $objTransaction='';
-		$objError='';
+        $objError='';
 				
-	    if(isset($_POST['applepaydata'])) {
-			$applePayData = json_decode($_POST['applepaydata'], true);
-		    if(isset($applePayData['paymentData']) && isset($applePayData['paymentMethod']) && isset($applePayData['transactionIdentifier'])) {
+        if(isset($_POST['applepaydata'])) {
+            $applePayData = json_decode($_POST['applepaydata'], true);
+            if(isset($applePayData['paymentData']) && isset($applePayData['paymentMethod']) && isset($applePayData['transactionIdentifier'])) {
 					
 				$cart = $this->context->cart;
 				if ($cart->id_customer == 0 || $cart->id_address_delivery == 0 || $cart->id_address_invoice == 0 || !$this->module->active) {
@@ -105,14 +104,14 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
 				PrestaShopLogger::addLog("TelrOrderCreateRequest: " . json_encode($data), 1);
 
 				$response  = $this->apiRequest($data);
-	            PrestaShopLogger::addLog("TelrOrderCreateResponse: " . json_encode($response), 1);
+                PrestaShopLogger::addLog("TelrOrderCreateResponse: " . json_encode($response), 1);
 				
-	            if (isset($response['transaction'])) { $objTransaction = $response['transaction']; }
-	            if (isset($response['error'])) { $objError = $response['error']; }
+                if (isset($response['transaction'])) { $objTransaction = $response['transaction']; }
+                if (isset($response['error'])) { $objError = $response['error']; }
                 if (is_array($objError)) {
-					$this->errors[] = "Unable to process your payment. Error: " . $objError['message'] . ' ' . $objError['note'] . ' ' . $objError['details'];;
-					$this->redirectWithNotifications('index.php?controller=order&step=1');
-				}else {
+                    $this->errors[] = "Unable to process your payment. Error: " . $objError['message'] . ' ' . $objError['note'] . ' ' . $objError['details'];;
+                    $this->redirectWithNotifications('index.php?controller=order&step=1');
+                }else {
                     $cart = $this->context->cart;
                     $currency = $this->context->currency;
                     $total = (float)$cart->getOrderTotal(true, Cart::BOTH);
@@ -125,25 +124,25 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
                     $txRef = $objTransaction['ref'];
                     if ($txStatus == 'A') {
                         if(Configuration::get('TELR_PAYMENTS_DEFAULT_STATUS') == 'AUTO'){
-							$this->module->validateOrder($cart->id,
-								Configuration::get('PS_OS_PAYMENT'), $total,
-								$this->module->displayName . " Ref: " . $txRef, NULL, $extra_vars,
-								(int)$currency->id, false, $customer->secure_key
-							);
-						}else{
-							$this->module->validateOrder($cart->id,
-								Configuration::get(Configuration::get('TELR_PAYMENTS_DEFAULT_STATUS')), $total,
-								$this->module->displayName . " Ref: " . $txRef, NULL, $extra_vars,
-								(int)$currency->id, false, $customer->secure_key
-							);
-						}
+                            $this->module->validateOrder($cart->id,
+                                Configuration::get('PS_OS_PAYMENT'), $total,
+                                $this->module->displayName . " Ref: " . $txRef, NULL, $extra_vars,
+                                (int)$currency->id, false, $customer->secure_key
+                            );
+                        }else{
+                            $this->module->validateOrder($cart->id,
+                                Configuration::get(Configuration::get('TELR_PAYMENTS_DEFAULT_STATUS')), $total,
+                                $this->module->displayName . " Ref: " . $txRef, NULL, $extra_vars,
+                                (int)$currency->id, false, $customer->secure_key
+                            );
+                        }
                         $this->redirectWithNotifications('index.php?controller=order-confirmation&id_cart='.$cart->id.'&id_module='.$this->module->id.'&id_order='.$this->module->currentOrder.'&key='.$this->context->customer->secure_key);
                     }
-				}
-			}
-		}
-		$this->errors[] = "Payment Failed! Reason: Invalid Request!";
-		$this->redirectWithNotifications('index.php?controller=order&step=1');		
+                }
+            }
+        }
+        $this->errors[] = "Payment Failed! Reason: Invalid Request!";
+        $this->redirectWithNotifications('index.php?controller=order&step=1');		
     }
 
     private function apiRequest($data){
