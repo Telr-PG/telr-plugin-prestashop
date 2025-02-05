@@ -145,7 +145,8 @@ class Telr_PaymentsProcessApplepayModuleFrontController extends ModuleFrontContr
         $this->redirectWithNotifications('index.php?controller=order&step=1');		
     }
 
-    private function apiRequest($data){
+    private function apiRequest($data)
+    {
 		
         $telrAPIURL = Configuration::get('TELR_PAYMENTS_APIURL')."/gateway/remote.json";
 		

@@ -688,7 +688,7 @@ class Telr_Payments extends PaymentModule
         $currency_code = $this->context->currency->iso_code;
         $cart_total = (float)$this->context->cart->getOrderTotal(true, Cart::BOTH);
         $cart_subtotal = (float)$this->context->cart->getOrderTotal(false, Cart::ONLY_PRODUCTS);
-		$shipping_amt = (float)$this->context->cart->getOrderTotal(false, Cart::ONLY_SHIPPING);
+        $shipping_amt = (float)$this->context->cart->getOrderTotal(false, Cart::ONLY_SHIPPING);
         $carrier_id = $this->context->cart->id_carrier;
         $carrier = new Carrier($carrier_id);
         $shipping_name = $carrier->name;
